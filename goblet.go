@@ -150,11 +150,13 @@ func FetchManagedRepositoryAsync(config *ServerConfig, u *url.URL, mustFetch boo
 	fetchStartTime := time.Now()
 	repo.fetchUpstreamPool.Submit(func() {
 		logElapsed("FetchManagedRepository queuing", fetchStartTime, time.Minute, repo.localDiskPath)
+		log.Printf("Skipping all fetchUpstream(nil)")
 
 		if mustFetch {
 			log.Printf("FetchManagedRepository required since mustFetch is set (%s)\n", repo.localDiskPath)
 			StatsdClient.Incr("goblet.operation.count", []string{"dir:" + repo.localDiskPath, "op:background_fetch", "must:1"}, 1)
 			// errorChan <- repo.fetchUpstream(nil)
+			errorChan <- nil
 		} else {
 			// check again when the task is picked up
 			elapsedSinceLastUpdate := time.Since(repo.LastUpdateTime())
