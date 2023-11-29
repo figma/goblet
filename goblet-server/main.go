@@ -229,6 +229,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// Schedule periodic upstream fetches every 15 minutes.
 	log.Println("Starting background fetches...")
 	cancel := goblet.RunEvery(15*time.Minute, func(t time.Time) {
 		for _, err := range FetchRepositories(config, configFile.Repositories, false) {
