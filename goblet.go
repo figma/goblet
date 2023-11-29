@@ -154,7 +154,7 @@ func FetchManagedRepositoryAsync(config *ServerConfig, u *url.URL, mustFetch boo
 		if mustFetch {
 			log.Printf("FetchManagedRepository required since mustFetch is set (%s)\n", repo.localDiskPath)
 			StatsdClient.Incr("goblet.operation.count", []string{"dir:" + repo.localDiskPath, "op:background_fetch", "must:1"}, 1)
-			errorChan <- repo.fetchUpstream(nil)
+			// errorChan <- repo.fetchUpstream(nil)
 		} else {
 			// check again when the task is picked up
 			elapsedSinceLastUpdate := time.Since(repo.LastUpdateTime())
@@ -164,15 +164,17 @@ func FetchManagedRepositoryAsync(config *ServerConfig, u *url.URL, mustFetch boo
 			} else {
 				log.Printf("FetchManagedRepository required since repo was not updated for %s (%s)\n", elapsedSinceLastUpdate, repo.localDiskPath)
 				StatsdClient.Incr("goblet.operation.count", []string{"dir:" + repo.localDiskPath, "op:background_fetch", "must:0"}, 1)
-				errorChan <- repo.fetchUpstream(nil)
+				// errorChan <- repo.fetchUpstream(nil)
+				log.Print("Running git gc as part of background operation")
+				errorChan <- repo.runGC()
 			}
 		}
 
 		// log gc.log content if any
 		if content, err := os.ReadFile(path.Join(repo.localDiskPath, "gc.log")); err == nil {
 			log.Printf("Found git gc log file (content:%s, dir:%s)\n", strings.ReplaceAll(string(content), "\n", " "), repo.localDiskPath)
-			log.Print("Running git gc")
-			repo.runGC()
+			log.Print("Running git gc b/c gc.log file was found")
+			errorChan <- repo.runGC()
 		}
 	})
 }

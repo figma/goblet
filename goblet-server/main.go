@@ -229,6 +229,14 @@ func main() {
 		os.Exit(1)
 	}
 
+	log.Println("Starting background fetches...")
+	cancel := goblet.RunEvery(15*time.Minute, func(t time.Time) {
+		for _, err := range FetchRepositories(config, configFile.Repositories, false) {
+			log.Println(err)
+		}
+	})
+	defer cancel()
+
 	log.Println("Registering HTTP routes...")
 	http.Handle("/", goblet.HTTPHandler(config))
 
