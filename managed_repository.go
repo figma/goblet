@@ -298,9 +298,10 @@ func (r *managedRepository) fetchUpstreamInternal(remote string, token *oauth2.T
 	args = append(args, remote)
 
 	// refspecs
-	var refspecBuilder strings.Builder
-	runGitWithStdOut(noopOperation{}, &refspecBuilder, r.localDiskPath, "config", fmt.Sprintf("remote.%s.fetch", remote))
-	args = append(args, strings.TrimSpace(refspecBuilder.String()))
+	// var refspecBuilder strings.Builder
+	// runGitWithStdOut(noopOperation{}, &refspecBuilder, r.localDiskPath, "config", fmt.Sprintf("remote.%s.fetch", remote))
+	// args = append(args, strings.TrimSpace(refspecBuilder.String()))
+	args = append(args, "+refs/heads/*:refs/remotes/origin/*")
 	args = append(args, "^refs/pull/*")
 	if len(additionalWants) >= 1 {
 		// only the first want will be appended
