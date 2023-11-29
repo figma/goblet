@@ -150,12 +150,11 @@ func FetchManagedRepositoryAsync(config *ServerConfig, u *url.URL, mustFetch boo
 	fetchStartTime := time.Now()
 	repo.fetchUpstreamPool.Submit(func() {
 		logElapsed("FetchManagedRepository queuing", fetchStartTime, time.Minute, repo.localDiskPath)
-		log.Printf("Skipping all fetchUpstream(nil)")
 
 		if mustFetch {
 			log.Printf("FetchManagedRepository required since mustFetch is set (%s)\n", repo.localDiskPath)
 			StatsdClient.Incr("goblet.operation.count", []string{"dir:" + repo.localDiskPath, "op:background_fetch", "must:1"}, 1)
-			// errorChan <- repo.fetchUpstream(nil)
+			errorChan <- repo.fetchUpstream(nil)
 			errorChan <- nil
 		} else {
 			// check again when the task is picked up
@@ -166,7 +165,7 @@ func FetchManagedRepositoryAsync(config *ServerConfig, u *url.URL, mustFetch boo
 			} else {
 				log.Printf("FetchManagedRepository required since repo was not updated for %s (%s)\n", elapsedSinceLastUpdate, repo.localDiskPath)
 				StatsdClient.Incr("goblet.operation.count", []string{"dir:" + repo.localDiskPath, "op:background_fetch", "must:0"}, 1)
-				// errorChan <- repo.fetchUpstream(nil)
+				errorChan <- repo.fetchUpstream(nil)
 				log.Print("Running git gc as part of background operation")
 				errorChan <- repo.runGC()
 			}

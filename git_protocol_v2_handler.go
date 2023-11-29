@@ -66,30 +66,30 @@ func handleV2Command(ctx context.Context, reporter gitProtocolErrorReporter, rep
 			return false
 		}
 
-		// refs, err := parseLsRefsResponse(resp)
-		// if err != nil {
-		// 	reporter.reportError(ctx, startTime, err)
-		// 	return false
-		// }
+		refs, err := parseLsRefsResponse(resp)
+		if err != nil {
+			reporter.reportError(ctx, startTime, err)
+			return false
+		}
 
-		// if hasUpdate, err := repo.hasAnyUpdate(refs); err != nil {
-		// 	reporter.reportError(ctx, startTime, err)
-		// 	return false
-		// } else if hasUpdate {
-		// 	repo.fetchUpstreamPool.Submit(func() {
-		// 		// check again when the task is picked up
-		// 		hasUpdate, err := repo.hasAnyUpdate(refs)
-		// 		if err == nil {
-		// 			if hasUpdate {
-		// 				log.Printf("FetchUpstream required since refs are not satisfied (%s)\n", repo.localDiskPath)
-		// 				StatsdClient.Incr("goblet.operation.count", []string{"dir:" + repo.localDiskPath, "op:ondemand_fetch", "triggered_by:hasanyupdate"}, 1)
-		// 				repo.fetchUpstream(nil)
-		// 			} else {
-		// 				log.Printf("FetchUpstream skipped since refs are satisfied (%s)\n", repo.localDiskPath)
-		// 			}
-		// 		}
-		// 	})
-		// }
+		if hasUpdate, err := repo.hasAnyUpdate(refs); err != nil {
+			reporter.reportError(ctx, startTime, err)
+			return false
+		} else if hasUpdate {
+			repo.fetchUpstreamPool.Submit(func() {
+				// check again when the task is picked up
+				hasUpdate, err := repo.hasAnyUpdate(refs)
+				if err == nil {
+					if hasUpdate {
+						log.Printf("FetchUpstream required since refs are not satisfied (%s)\n", repo.localDiskPath)
+						StatsdClient.Incr("goblet.operation.count", []string{"dir:" + repo.localDiskPath, "op:ondemand_fetch", "triggered_by:hasanyupdate"}, 1)
+						repo.fetchUpstream(nil)
+					} else {
+						log.Printf("FetchUpstream skipped since refs are satisfied (%s)\n", repo.localDiskPath)
+					}
+				}
+			})
+		}
 
 		writeResp(w, resp)
 		reporter.reportError(ctx, startTime, nil)
