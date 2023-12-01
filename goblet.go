@@ -220,7 +220,7 @@ func NoOpRequestAuthorizer(request *http.Request) error {
 }
 
 func seedRepository(config *ServerConfig, repository *managedRepository) error {
-	bucket := "figma-ci-cache-yqiu-test" // os.Getenv("FIGMA_CI_CACHE_BUCKET")
+	bucket := os.Getenv("FIGMA_CI_CACHE_BUCKET")
 	key := "figma.tar"
 
 	var ctx = context.Background()
