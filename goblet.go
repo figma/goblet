@@ -19,7 +19,6 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -227,6 +226,7 @@ func seedRepository(config *ServerConfig, repository *managedRepository) error {
 	var ctx = context.Background()
 	client, err := getS3Client(ctx)
 	if err != nil {
+		log.Println("Could not get S3 client")
 		return err
 	}
 
@@ -236,6 +236,7 @@ func seedRepository(config *ServerConfig, repository *managedRepository) error {
 		Key:    &key,
 	})
 	if err != nil {
+		log.Println("Could not get the object")
 		return err
 	}
 	defer output.Body.Close()
@@ -243,6 +244,7 @@ func seedRepository(config *ServerConfig, repository *managedRepository) error {
 	// Create a gzip reader
 	gr, err := gzip.NewReader(output.Body)
 	if err != nil {
+		log.Println("Could not get the gzip reader")
 		return err
 	}
 	defer gr.Close()
@@ -274,7 +276,7 @@ func seedRepository(config *ServerConfig, repository *managedRepository) error {
 		}
 	}
 
-	fmt.Println("Extracted", key)
+	log.Println("Extracted", key)
 	return nil
 }
 
