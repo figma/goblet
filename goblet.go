@@ -136,7 +136,7 @@ func OpenManagedRepository(config *ServerConfig, u *url.URL) (ManagedRepository,
 	log.Println("Seeding S3 repo")
 	var seedErr = seedRepository(config, m)
 	if seedErr != nil {
-		log.Printf("Had issues seeding the repo %v", err)
+		log.Printf("Had issues seeding the repo %v", seedErr)
 	}
 
 	return m, nil
