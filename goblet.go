@@ -16,15 +16,22 @@
 package goblet
 
 import (
+	"archive/tar"
+	"compress/gzip"
+	"context"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"net/url"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
 	"golang.org/x/oauth2"
@@ -122,7 +129,18 @@ func RunEvery(delay time.Duration, f func(t time.Time)) func() {
 }
 
 func OpenManagedRepository(config *ServerConfig, u *url.URL) (ManagedRepository, error) {
-	return openManagedRepository(config, u)
+	m, err := openManagedRepository(config, u)
+	if err != nil {
+		return m, err
+	}
+
+	log.Println("Seeding S3 repo")
+	var seedErr = seedRepository(config, m)
+	if seedErr != nil {
+		log.Printf("Had issues seeding the repo %v", err)
+	}
+
+	return m, nil
 }
 
 func FetchManagedRepositoryAsync(config *ServerConfig, u *url.URL, mustFetch bool, errorChan chan<- error) {
@@ -200,4 +218,70 @@ func DefaultURLCanonicalizer(u *url.URL) (*url.URL, error) {
 // about the incoming request.
 func NoOpRequestAuthorizer(request *http.Request) error {
 	return nil
+}
+
+func seedRepository(config *ServerConfig, repository *managedRepository) error {
+	bucket := "figma-ci-cache-yqiu-test" // os.Getenv("FIGMA_CI_CACHE_BUCKET")
+	key := "figma.tar"
+
+	var ctx = context.Background()
+	client, err := getS3Client(ctx)
+	if err != nil {
+		return err
+	}
+
+	// Get the object
+	output, err := client.GetObject(ctx, &s3.GetObjectInput{
+		Bucket: &bucket,
+		Key:    &key,
+	})
+	if err != nil {
+		return err
+	}
+	defer output.Body.Close()
+
+	// Create a gzip reader
+	gr, err := gzip.NewReader(output.Body)
+	if err != nil {
+		return err
+	}
+	defer gr.Close()
+
+	// Create a tar reader
+	tr := tar.NewReader(gr)
+
+	// Iterate through the files in the tar archive
+	for {
+		hdr, err := tr.Next()
+		if err == io.EOF {
+			// End of archive
+			break
+		}
+		if err != nil {
+			return err
+		}
+
+		// Create the file
+		outFile, err := os.Create(filepath.Join(repository.localDiskPath, hdr.Name))
+		if err != nil {
+			return err
+		}
+		defer outFile.Close()
+
+		// Copy the file data to the file
+		if _, err := io.Copy(outFile, tr); err != nil {
+			return err
+		}
+	}
+
+	fmt.Println("Extracted", key)
+	return nil
+}
+
+func getS3Client(ctx context.Context) (*s3.Client, error) {
+	cfg, err := config.LoadDefaultConfig(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return s3.NewFromConfig(cfg), nil
 }
