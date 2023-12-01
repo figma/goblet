@@ -281,7 +281,7 @@ func seedRepository(config *ServerConfig, repository *managedRepository) error {
 }
 
 func getS3Client(ctx context.Context) (*s3.Client, error) {
-	cfg, err := config.LoadDefaultConfig(ctx)
+	cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion("us-west-2"))
 	if err != nil {
 		return nil, err
 	}
