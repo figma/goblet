@@ -69,7 +69,7 @@ func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if proto := r.Header.Get("Git-Protocol"); proto != "version=2" {
-		reporter.reportError(status.Error(codes.InvalidArgument, "accepts only Git protocol v2"))
+		reporter.reportError(status.Errorf(codes.InvalidArgument, "accepts only Git protocol v2, received %v", proto))
 		return
 	}
 
