@@ -289,7 +289,6 @@ func (r *managedRepository) fetchUpstreamInternal(remote string, token *oauth2.T
 	args = append(args, "fetch")
 
 	// fetch options
-	args = append(args, "-v")
 	args = append(args, "--force")
 	args = append(args, "--no-write-fetch-head")
 	args = append(args, "--prune")
