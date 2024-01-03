@@ -169,8 +169,7 @@ func logV2Request(chunks []*gitprotocolio.ProtocolV2RequestChunk, repo *managedR
 		buffer.Write(c.EncodeToPktLine())
 		buffer.WriteRune(' ')
 	}
-	log.Printf("Received V2 Request: %s\n", buffer.String())
-
+	log.Printf("Received V2 Request")
 }
 
 func generateV2RequestMetricTags(chunks []*gitprotocolio.ProtocolV2RequestChunk, repo *managedRepository) []string {
