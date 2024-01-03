@@ -50,7 +50,7 @@ func handleV2Command(ctx context.Context, reporter gitProtocolErrorReporter, rep
 		return false
 	}
 
-	logV2Request(command, repo)
+	// logV2Request(command, repo)
 
 	switch command[0].Command {
 	case "ls-refs":

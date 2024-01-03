@@ -356,7 +356,7 @@ func (r *managedRepository) hasAnyUpdate(refs map[string]git.Oid) (bool, error) 
 	defer logStats("hasAnyUpdate", startTime, err)
 	defer logElapsed("hasAnyUpdate", startTime, 2*time.Second, r.localDiskPath)
 
-	log.Printf("Comparing refs of %d\n", len(refs))
+	// log.Printf("Comparing refs of %d\n", len(refs))
 
 	repo, err := git.OpenRepository(r.localDiskPath)
 	if err != nil {
@@ -395,7 +395,7 @@ func (r *managedRepository) hasAllWants(hashes []git.Oid, refs []string) (bool, 
 	defer logStats("hasAllWants", startTime, err)
 	defer logElapsed("hasAllWants", startTime, 2*time.Second, r.localDiskPath)
 
-	log.Printf("Searching hashes of %d and refs of %d\n", len(hashes), len(refs))
+	// log.Printf("Searching hashes of %d and refs of %d\n", len(hashes), len(refs))
 
 	repo, err := git.OpenRepository(r.localDiskPath)
 	if err != nil {
@@ -409,10 +409,10 @@ func (r *managedRepository) hasAllWants(hashes []git.Oid, refs []string) (bool, 
 
 	for _, hash := range hashes {
 		if !odb.Exists(&hash) {
-			log.Printf("Searching hash and not found %s\n", hash.String())
+			// log.Printf("Searching hash and not found %s\n", hash.String())
 			return false, nil
 		} else {
-			log.Printf("Searching hash and found %s\n", hash.String())
+			// log.Printf("Searching hash and found %s\n", hash.String())
 		}
 	}
 
