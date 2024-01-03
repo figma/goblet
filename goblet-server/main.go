@@ -258,7 +258,7 @@ type logBasedOperation struct {
 }
 
 func (op *logBasedOperation) Printf(format string, a ...interface{}) {
-	log.Printf("Progress %s (%s): %s", op.action, op.u.String(), fmt.Sprintf(format, a...))
+	// log.Printf("Progress %s (%s): %s", op.action, op.u.String(), fmt.Sprintf(format, a...))
 }
 
 func (op *logBasedOperation) Done(err error) {

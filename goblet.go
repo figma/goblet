@@ -128,18 +128,7 @@ func RunEvery(delay time.Duration, f func(t time.Time)) func() {
 }
 
 func OpenManagedRepository(config *ServerConfig, u *url.URL) (ManagedRepository, error) {
-	m, err := openManagedRepository(config, u)
-	if err != nil {
-		return m, err
-	}
-
-	log.Println("Seeding S3 repo")
-	var seedErr = seedRepository(config, m)
-	if seedErr != nil {
-		log.Printf("Had issues seeding the repo %v", seedErr)
-	}
-
-	return m, nil
+	return openManagedRepository(config, u)
 }
 
 func FetchManagedRepositoryAsync(config *ServerConfig, u *url.URL, mustFetch bool, errorChan chan<- error) {
