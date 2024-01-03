@@ -149,11 +149,11 @@ func main() {
 	}
 
 	var rl = func(r *http.Request, status int, requestSize, responseSize int64, latency time.Duration) {
-		dump, err := httputil.DumpRequest(r, false)
+		_, err := httputil.DumpRequest(r, false)
 		if err != nil {
 			return
 		}
-		log.Printf("%q %d reqsize: %d, respsize %d, latency: %v", dump, status, requestSize, responseSize, latency)
+		// log.Printf("%q %d reqsize: %d, respsize %d, latency: %v", dump, status, requestSize, responseSize, latency)
 	}
 
 	var lrol = func(action string, u *url.URL) goblet.RunningOperation {
