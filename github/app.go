@@ -63,6 +63,9 @@ func getInstallationAccessToken(jwt string, installationID string) (oauth2.Token
 	}
 	defer func() { _ = res.Body.Close() }()
 
+	// Log GitHub rate limit headers
+	logGitHubRateLimitHeaders("TokenGeneration", url, res)
+
 	resBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Printf("GitHub App token response read failed (url:%s, err:%v)\n", url, err)
@@ -73,7 +76,7 @@ func getInstallationAccessToken(jwt string, installationID string) (oauth2.Token
 	log.Printf("GitHub App token response (url:%s, status:%d, headers:%v)\n", url, res.StatusCode, res.Header)
 
 	if res.StatusCode != http.StatusCreated {
-		log.Printf("GitHub App token creation failed with non-OK response (url:%s, status:%d, content-type:%s, error:%s)\n", 
+		log.Printf("GitHub App token creation failed with non-OK response (url:%s, status:%d, content-type:%s, error:%s)\n",
 			url, res.StatusCode, res.Header.Get("Content-Type"), string(resBytes))
 		return oauth2.Token{}, fmt.Errorf("failed to create OAuth token from GitHub App: %s", string(resBytes))
 	}
@@ -98,6 +101,24 @@ func getInstallationAccessToken(jwt string, installationID string) (oauth2.Token
 		TokenType:   "Basic",
 		Expiry:      exp,
 	}, nil
+}
+
+// logGitHubRateLimitHeaders logs GitHub rate limit information from response headers
+func logGitHubRateLimitHeaders(operation, url string, res *http.Response) {
+	limit := res.Header.Get("x-ratelimit-limit")
+	remaining := res.Header.Get("x-ratelimit-remaining")
+	used := res.Header.Get("x-ratelimit-used")
+	reset := res.Header.Get("x-ratelimit-reset")
+	resource := res.Header.Get("x-ratelimit-resource")
+
+	if limit != "" || remaining != "" {
+		log.Printf("[GitHub Rate Limit] operation=%s, url=%s, status=%d, limit=%s, remaining=%s, used=%s, reset=%s, resource=%s\n",
+			operation, url, res.StatusCode, limit, remaining, used, reset, resource)
+	} else {
+		// Some endpoints might not return rate limit headers
+		log.Printf("[GitHub Response] operation=%s, url=%s, status=%d (no rate limit headers)\n",
+			operation, url, res.StatusCode)
+	}
 }
 
 func generateAppJWT(appID string, now time.Time, privateKey *rsa.PrivateKey) (string, error) {

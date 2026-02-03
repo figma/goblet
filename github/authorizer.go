@@ -143,6 +143,9 @@ func isTokenValid(token string, repoURL string) (bool, bool, error) {
 	}
 	defer res.Body.Close()
 
+	// Log GitHub rate limit headers
+	logGitHubRateLimitHeaders("TokenValidation", infoRefsURL, res)
+
 	resBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Printf("GitHub authorization response read failed (url:%s, err:%v)\n", infoRefsURL, err)
@@ -153,6 +156,8 @@ func isTokenValid(token string, repoURL string) (bool, bool, error) {
 	log.Printf("GitHub authorization response (url:%s, status:%d, headers:%v)\n", infoRefsURL, res.StatusCode, res.Header)
 
 	if res.StatusCode != http.StatusOK {
+		log.Printf("Token validation failed (status=%d, url=%s, body_preview=%s)\n",
+			res.StatusCode, infoRefsURL, truncateString(string(resBytes), 200))
 		err = errors.New(string(resBytes))
 		log.Printf("GitHub authorization failed with non-OK response (url:%s, status:%d, content-type:%s, error:%s)\n", 
 			infoRefsURL, res.StatusCode, res.Header.Get("Content-Type"), string(resBytes))
@@ -187,4 +192,30 @@ func (authorizer CacheableAuthorizer) CacheMetricsHandler(w http.ResponseWriter,
 	if b, err := json.Marshal(authorizer.CacheMetrics()); err == nil {
 		w.Write(b)
 	}
+}
+
+// logGitHubRateLimitHeaders logs GitHub rate limit information from response headers
+func logGitHubRateLimitHeaders(operation, url string, res *http.Response) {
+	limit := res.Header.Get("x-ratelimit-limit")
+	remaining := res.Header.Get("x-ratelimit-remaining")
+	used := res.Header.Get("x-ratelimit-used")
+	reset := res.Header.Get("x-ratelimit-reset")
+	resource := res.Header.Get("x-ratelimit-resource")
+
+	if limit != "" || remaining != "" {
+		log.Printf("[GitHub Rate Limit] operation=%s, url=%s, status=%d, limit=%s, remaining=%s, used=%s, reset=%s, resource=%s\n",
+			operation, url, res.StatusCode, limit, remaining, used, reset, resource)
+	} else {
+		// Some endpoints might not return rate limit headers
+		log.Printf("[GitHub Response] operation=%s, url=%s, status=%d (no rate limit headers)\n",
+			operation, url, res.StatusCode)
+	}
+}
+
+// truncateString truncates a string to maxLen characters
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
 }
