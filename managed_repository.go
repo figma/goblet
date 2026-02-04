@@ -196,9 +196,14 @@ func (r *managedRepository) lsRefsUpstream(command []*gitprotocolio.ProtocolV2Re
 	logStats("ls-refs", startTime, err)
 	logElapsed("lsRefsUpstream", startTime, time.Minute, r.localDiskPath)
 	if err != nil {
+		log.Printf("ls-refs request failed (dir:%s, err:%v)\n", r.localDiskPath, err)
 		return nil, status.Errorf(codes.Internal, "cannot send a request to the upstream: %v", err)
 	}
 	defer resp.Body.Close()
+	
+	// Log response headers
+	log.Printf("ls-refs response (dir:%s, status:%d, headers:%v)\n", r.localDiskPath, resp.StatusCode, resp.Header)
+	
 	if resp.StatusCode != http.StatusOK {
 		errMessage := ""
 		if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/plain") {
@@ -209,6 +214,8 @@ func (r *managedRepository) lsRefsUpstream(command []*gitprotocolio.ProtocolV2Re
 		}
 		errData, _ := ioutil.ReadAll(resp.Body)
 		errMessage = string(errData)
+		log.Printf("ls-refs failed with non-OK response (dir:%s, status:%d, content-type:%s, error:%s)\n", 
+			r.localDiskPath, resp.StatusCode, resp.Header.Get("Content-Type"), errMessage)
 		return nil, fmt.Errorf("got a non-OK response from the upstream: %v %s", resp.StatusCode, errMessage)
 	}
 
@@ -314,7 +321,11 @@ func (r *managedRepository) fetchUpstreamInternal(remote string, token *oauth2.T
 
 	// mask token before logging
 	args[tokenArgIndex] = "[redacted]"
-	log.Printf("FetchUpstream executed git %s on %s\n", strings.Join(args, " "), r.localDiskPath)
+	if err != nil {
+		log.Printf("FetchUpstream git command failed (cmd:git %s, dir:%s, err:%v)\n", strings.Join(args, " "), r.localDiskPath, err)
+	} else {
+		log.Printf("FetchUpstream git command succeeded (cmd:git %s, dir:%s)\n", strings.Join(args, " "), r.localDiskPath)
+	}
 
 	return err
 }

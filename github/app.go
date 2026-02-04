@@ -57,16 +57,23 @@ func getInstallationAccessToken(jwt string, installationID string) (oauth2.Token
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
+		log.Printf("GitHub App token request failed (url:%s, err:%v)\n", url, err)
 		return oauth2.Token{}, err
 	}
 	defer func() { _ = res.Body.Close() }()
 
 	resBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
+		log.Printf("GitHub App token response read failed (url:%s, err:%v)\n", url, err)
 		return oauth2.Token{}, err
 	}
 
+	// Log response headers
+	log.Printf("GitHub App token response (url:%s, status:%d, headers:%v)\n", url, res.StatusCode, res.Header)
+
 	if res.StatusCode != http.StatusCreated {
+		log.Printf("GitHub App token creation failed with non-OK response (url:%s, status:%d, content-type:%s, error:%s)\n", 
+			url, res.StatusCode, res.Header.Get("Content-Type"), string(resBytes))
 		return oauth2.Token{}, fmt.Errorf("failed to create OAuth token from GitHub App: %s", string(resBytes))
 	}
 

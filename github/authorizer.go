@@ -138,17 +138,24 @@ func isTokenValid(token string, repoURL string) (bool, bool, error) {
 
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
+		log.Printf("GitHub authorization request failed (url:%s, err:%v)\n", infoRefsURL, err)
 		return false, true, err
 	}
 	defer res.Body.Close()
 
 	resBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
+		log.Printf("GitHub authorization response read failed (url:%s, err:%v)\n", infoRefsURL, err)
 		return false, true, err
 	}
 
+	// Log response headers
+	log.Printf("GitHub authorization response (url:%s, status:%d, headers:%v)\n", infoRefsURL, res.StatusCode, res.Header)
+
 	if res.StatusCode != http.StatusOK {
 		err = errors.New(string(resBytes))
+		log.Printf("GitHub authorization failed with non-OK response (url:%s, status:%d, content-type:%s, error:%s)\n", 
+			infoRefsURL, res.StatusCode, res.Header.Get("Content-Type"), string(resBytes))
 
 		// should not cache result if statusCode matches these, so next authorization attempt will retry
 		if res.StatusCode >= 500 && res.StatusCode < 600 && res.StatusCode != 501 {
