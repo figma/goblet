@@ -142,12 +142,17 @@ func isTokenValid(token string, repoURL string) (bool, bool, error) {
 	}
 	defer res.Body.Close()
 
+	// Log GitHub rate limit headers
+	logGitHubRateLimitHeaders("TokenValidation", infoRefsURL, res)
+
 	resBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return false, true, err
 	}
 
 	if res.StatusCode != http.StatusOK {
+		log.Printf("Token validation failed (status=%d, url=%s, body_preview=%s)\n",
+			res.StatusCode, infoRefsURL, truncateString(string(resBytes), 200))
 		err = errors.New(string(resBytes))
 
 		// should not cache result if statusCode matches these, so next authorization attempt will retry

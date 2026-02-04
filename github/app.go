@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"time"
 
@@ -61,12 +62,16 @@ func getInstallationAccessToken(jwt string, installationID string) (oauth2.Token
 	}
 	defer func() { _ = res.Body.Close() }()
 
+	// Log GitHub rate limit headers
+	logGitHubRateLimitHeaders("TokenGeneration", url, res)
+
 	resBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		return oauth2.Token{}, err
 	}
 
 	if res.StatusCode != http.StatusCreated {
+		log.Printf("GitHub API error (status=%d, body=%s)\n", res.StatusCode, string(resBytes))
 		return oauth2.Token{}, fmt.Errorf("failed to create OAuth token from GitHub App: %s", string(resBytes))
 	}
 
