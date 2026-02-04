@@ -192,7 +192,7 @@ func (r *managedRepository) lsRefsUpstream(command []*gitprotocolio.ProtocolV2Re
 	t.SetAuthHeader(req)
 
 	startTime := time.Now()
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := DoWithRetry(http.DefaultClient, req)
 	logStats("ls-refs", startTime, err)
 	logElapsed("lsRefsUpstream", startTime, time.Minute, r.localDiskPath)
 	if err != nil {

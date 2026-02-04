@@ -16,6 +16,7 @@ import (
 
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/ReneKroon/ttlcache/v2"
+	"github.com/figma/goblet"
 )
 
 type CacheableAuthorizer struct {
@@ -136,7 +137,7 @@ func isTokenValid(token string, repoURL string) (bool, bool, error) {
 	req.Header.Add("Git-Protocol", "version=2")
 	req.SetBasicAuth("x-access-token", token)
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := goblet.DoWithRetry(http.DefaultClient, req)
 	if err != nil {
 		return false, true, err
 	}

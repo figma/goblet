@@ -23,6 +23,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/figma/goblet"
 	"golang.org/x/oauth2"
 	"gopkg.in/square/go-jose.v2"
 	"gopkg.in/square/go-jose.v2/jwt"
@@ -55,7 +56,7 @@ func getInstallationAccessToken(jwt string, installationID string) (oauth2.Token
 	req.Header.Add("Accept", "application/vnd.github.v3+json")
 	req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", jwt))
 
-	res, err := http.DefaultClient.Do(req)
+	res, err := goblet.DoWithRetry(http.DefaultClient, req)
 	if err != nil {
 		return oauth2.Token{}, err
 	}
