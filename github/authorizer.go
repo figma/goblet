@@ -143,6 +143,9 @@ func isTokenValid(token string, repoURL string) (bool, bool, error) {
 	}
 	defer res.Body.Close()
 
+	// Log GitHub rate limit headers
+	logGitHubRateLimitHeaders("TokenValidation", infoRefsURL, res)
+
 	resBytes, err := ioutil.ReadAll(res.Body)
 	if err != nil {
 		log.Printf("GitHub authorization response read failed (url:%s, err:%v)\n", infoRefsURL, err)
@@ -153,6 +156,8 @@ func isTokenValid(token string, repoURL string) (bool, bool, error) {
 	log.Printf("GitHub authorization response (url:%s, status:%d, headers:%v)\n", infoRefsURL, res.StatusCode, res.Header)
 
 	if res.StatusCode != http.StatusOK {
+		log.Printf("Token validation failed (status=%d, url=%s, body_preview=%s)\n",
+			res.StatusCode, infoRefsURL, truncateString(string(resBytes), 200))
 		err = errors.New(string(resBytes))
 		log.Printf("GitHub authorization failed with non-OK response (url:%s, status:%d, content-type:%s, error:%s)\n", 
 			infoRefsURL, res.StatusCode, res.Header.Get("Content-Type"), string(resBytes))
