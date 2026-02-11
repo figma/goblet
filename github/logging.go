@@ -7,11 +7,11 @@ import (
 
 // logGitHubRateLimitHeaders logs GitHub rate limit information from response headers
 func logGitHubRateLimitHeaders(operation, url string, res *http.Response) {
-	limit := res.Header.Get("x-ratelimit-limit")
-	remaining := res.Header.Get("x-ratelimit-remaining")
-	used := res.Header.Get("x-ratelimit-used")
-	reset := res.Header.Get("x-ratelimit-reset")
-	resource := res.Header.Get("x-ratelimit-resource")
+	limit := res.Header.Get("X-RateLimit-Limit")
+	remaining := res.Header.Get("X-RateLimit-Remaining")
+	used := res.Header.Get("X-RateLimit-Used")
+	reset := res.Header.Get("X-RateLimit-Reset")
+	resource := res.Header.Get("X-RateLimit-Resource")
 
 	if limit != "" || remaining != "" {
 		log.Printf("[GitHub Rate Limit] operation=%s, url=%s, status=%d, limit=%s, remaining=%s, used=%s, reset=%s, resource=%s\n",
