@@ -16,6 +16,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -161,16 +162,37 @@ func main() {
 		return &logBasedOperation{action, u}
 	}
 
-	ts, err := github.NewTokenSource(
-		os.Getenv("GH_APP_ID"),
-		os.Getenv("GH_APP_INSTALLATION_ID"),
-		os.Getenv("GH_APP_PRIVATE_KEY"),
-		time.Duration(configFile.TokenExpiryDeltaSeconds)*time.Second,
-	)
+	tokenExpiryDelta := time.Duration(configFile.TokenExpiryDeltaSeconds) * time.Second
 
-	if err != nil {
-		log.Fatal(err)
+	var ts *github.MultiTokenSource
+	if ghAppsJSON := os.Getenv("GH_APPS"); ghAppsJSON != "" {
+		var appConfigs []github.AppConfig
+		if err := json.Unmarshal([]byte(ghAppsJSON), &appConfigs); err != nil {
+			log.Fatalf("Failed to parse GH_APPS JSON: %v", err)
+		}
+		ts, err = github.NewMultiTokenSourceFromConfigs(appConfigs, tokenExpiryDelta, goblet.StatsdClient)
+		if err != nil {
+			log.Fatalf("Failed to create multi token source from GH_APPS: %v", err)
+		}
+		log.Printf("Configured %d GitHub App(s) from GH_APPS env var\n", len(appConfigs))
+	} else {
+		singleSource, err := github.NewTokenSource(
+			os.Getenv("GH_APP_ID"),
+			os.Getenv("GH_APP_INSTALLATION_ID"),
+			os.Getenv("GH_APP_PRIVATE_KEY"),
+			tokenExpiryDelta,
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
+		ts, err = github.NewMultiTokenSource([]*github.TokenSource{singleSource}, goblet.StatsdClient)
+		if err != nil {
+			log.Fatal(err)
+		}
+		log.Println("Configured 1 GitHub App from legacy env vars (GH_APP_ID, GH_APP_INSTALLATION_ID, GH_APP_PRIVATE_KEY)")
 	}
+
+	goblet.StatsdClient.Gauge("goblet.github_apps.count", float64(ts.NumSources()), nil, 1)
 
 	authorizer := github.NewAuthorizer(true, goblet.StatsdClient)
 	defer authorizer.Close()
