@@ -20,8 +20,8 @@ import (
 	"encoding/pem"
 	"fmt"
 	"log"
+	"math/rand"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/DataDog/datadog-go/statsd"
@@ -35,22 +35,29 @@ type AppConfig struct {
 	PrivateKey     string `json:"private_key"`
 }
 
-// MultiTokenSource wraps N TokenSource instances and cycles through them
-// using an atomic round-robin counter. This distributes GitHub API rate
-// limit consumption evenly across multiple GitHub Apps.
+// MultiTokenSource wraps N TokenSource instances and randomly selects one
+// for each Token() call. Random selection ensures even distribution across
+// multiple GitHub Apps without requiring coordination between ECS instances.
 //
 // MultiTokenSource implements oauth2.TokenSource.
 type MultiTokenSource struct {
 	sources      []*TokenSource
-	counter      uint64
+	rng          *rand.Rand
+	mu           sync.Mutex
 	statsdClient *statsd.Client
 }
 
-// Token returns a token from the next TokenSource in round-robin order.
+// Token returns a token from a randomly selected TokenSource.
 func (m *MultiTokenSource) Token() (*oauth2.Token, error) {
-	n := uint64(len(m.sources))
-	idx := atomic.AddUint64(&m.counter, 1) - 1
-	selected := idx % n
+	n := len(m.sources)
+	var selected int
+	if n == 1 {
+		selected = 0
+	} else {
+		m.mu.Lock()
+		selected = m.rng.Intn(n)
+		m.mu.Unlock()
+	}
 	source := m.sources[selected]
 
 	if m.statsdClient != nil {
@@ -73,6 +80,7 @@ func NewMultiTokenSource(sources []*TokenSource, statsdClient *statsd.Client) (*
 	}
 	return &MultiTokenSource{
 		sources:      sources,
+		rng:          rand.New(rand.NewSource(time.Now().UnixNano())),
 		statsdClient: statsdClient,
 	}, nil
 }
