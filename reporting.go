@@ -137,14 +137,14 @@ type monitoringReader struct {
 	bytesRead int64
 }
 
-func (r *monitoringReader) Read(p []byte) (int, error) {
-	n, err := r.r.Read(p)
-	r.bytesRead += int64(n)
+func (monR *monitoringReader) Read(p []byte) (int, error) {
+	n, err := monR.r.Read(p)
+	monR.bytesRead += int64(n)
 	return n, err
 }
 
-func (r *monitoringReader) Close() error {
-	return r.Close()
+func (monR *monitoringReader) Close() error {
+	return monR.r.Close()
 }
 
 type monitoringWriter struct {
@@ -154,25 +154,25 @@ type monitoringWriter struct {
 	bytesWritten int64
 }
 
-func (w *monitoringWriter) Flush() {
-	w.flush()
+func (monW *monitoringWriter) Flush() {
+	monW.flush()
 }
 
-func (w *monitoringWriter) Write(bs []byte) (n int, err error) {
-	if w.status == 0 {
-		w.status = http.StatusOK
+func (monW *monitoringWriter) Write(bs []byte) (n int, err error) {
+	if monW.status == 0 {
+		monW.status = http.StatusOK
 	}
-	n, err = w.w.Write(bs)
-	w.bytesWritten += int64(len(bs))
-	w.flush()
+	n, err = monW.w.Write(bs)
+	monW.bytesWritten += int64(len(bs))
+	monW.flush()
 	return
 }
 
-func (w *monitoringWriter) WriteHeader(status int) {
-	w.status = status
-	w.w.WriteHeader(status)
+func (monW *monitoringWriter) WriteHeader(status int) {
+	monW.status = status
+	monW.w.WriteHeader(status)
 }
 
-func (w *monitoringWriter) Header() http.Header {
-	return w.w.Header()
+func (monW *monitoringWriter) Header() http.Header {
+	return monW.w.Header()
 }
