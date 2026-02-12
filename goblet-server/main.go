@@ -177,6 +177,7 @@ func main() {
 
 	config := &goblet.ServerConfig{
 		LocalDiskCacheRoot:         configFile.CacheRoot,
+		PeerLoadBalancer:           configFile.PeerLoadBalancer,
 		URLCanonicalizer:           github.URLCanonicalizer,
 		RequestAuthorizer:          goblet.NoOpRequestAuthorizer,
 		TokenSource:                ts,

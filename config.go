@@ -23,6 +23,7 @@ import (
 type ConfigFile struct {
 	Port                    int      `json:"port"`
 	CacheRoot               string   `json:"cache_root"`
+	PeerLoadBalancer        string   `json:"peer_load_balancer,omitempty"`
 	TokenExpiryDeltaSeconds int      `json:"token_expiry_delta_seconds"`
 	EnableMetrics           bool     `json:"enable_metrics,omitempty"`
 	PackObjectsHook         string   `json:"pack_objects_hook,omitempty"`
