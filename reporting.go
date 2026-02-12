@@ -144,7 +144,7 @@ func (r *monitoringReader) Read(p []byte) (int, error) {
 }
 
 func (r *monitoringReader) Close() error {
-	return r.r.Close()
+	return r.Close()
 }
 
 type monitoringWriter struct {
