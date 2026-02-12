@@ -130,12 +130,51 @@ func openManagedRepository(config *ServerConfig, u *url.URL) (*managedRepository
 			runGit(op, localDiskPath, "remote", "add", "--mirror=fetch", "origin", u.String())
 
 			log.Printf("Created and configured local Git repository (git:%s, dir:%s)\n", gitVersion, localDiskPath)
+
+			// Try to clone from peer load balancer first (initial setup only)
+			if config.PeerLoadBalancer != "" {
+				peerURL := config.PeerLoadBalancer + u.Path
+				log.Printf("Attempting initial clone from peer: %s\n", peerURL)
+
+				if err := cloneFromPeer(localDiskPath, peerURL); err == nil {
+					log.Printf("Successfully cloned from peer load balancer\n")
+					atomic.StoreInt64(&m.lastUpdateUnix, time.Now().Unix())
+				} else {
+					log.Printf("Peer clone failed, will fetch from GitHub: %v\n", err)
+				}
+			}
 		} else {
 			log.Printf("Local Git repository %s already exists. Skipped configuration\n", localDiskPath)
 		}
 	})
 
 	return m, nil
+}
+
+func cloneFromPeer(localDiskPath, peerURL string) error {
+	// Set header to identify this as a peer request
+	gitEnv := []string{
+		"GIT_HTTP_EXTRA_HEADER=X-Goblet-Peer-Request: true",
+	}
+
+	// Use git fetch from peer with timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, gitBinary,
+		"-C", localDiskPath,
+		"fetch", peerURL,
+		"+refs/*:refs/*", // Fetch all refs
+	)
+	cmd.Env = append(os.Environ(), gitEnv...)
+
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return fmt.Errorf("peer clone failed: %w, output: %s", err, output)
+	}
+
+	log.Printf("Peer clone completed: %s\n", output)
+	return nil
 }
 
 func logStats(command string, startTime time.Time, err error) {

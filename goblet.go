@@ -71,6 +71,8 @@ var (
 type ServerConfig struct {
 	LocalDiskCacheRoot string
 
+	PeerLoadBalancer string
+
 	URLCanonicalizer func(*url.URL) (*url.URL, error)
 
 	RequestAuthorizer func(*http.Request) error

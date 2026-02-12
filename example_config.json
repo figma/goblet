@@ -1,6 +1,7 @@
 {
   "port": 8080,
   "cache_root": "/tmp/goblet",
+  "peer_load_balancer": "http://goblet.svc.cluster.local:8080",
   "token_expiry_delta_seconds": 300,
   "enable_metrics": true,
   "repositories": [
