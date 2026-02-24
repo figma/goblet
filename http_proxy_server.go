@@ -68,6 +68,10 @@ func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reporter.reportError(err)
 		return
 	}
+	if isLFSRequest(r) {
+		s.lfsProxyHandler(w, r)
+		return
+	}
 	if proto := r.Header.Get("Git-Protocol"); proto != "version=2" {
 		reporter.reportError(status.Errorf(codes.InvalidArgument, "accepts only Git protocol v2, received %v", proto))
 		return
@@ -81,6 +85,57 @@ func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case strings.HasSuffix(r.URL.Path, "/git-upload-pack"):
 		s.uploadPackHandler(reporter, w, r, ci_source)
 	}
+}
+
+var hopByHopHeaders = []string{
+	"Connection",
+	"Keep-Alive",
+	"Proxy-Authorization",
+	"Proxy-Connection",
+	"Te",
+	"Trailer",
+	"Transfer-Encoding",
+	"Upgrade",
+}
+
+func isLFSRequest(r *http.Request) bool {
+	return strings.Contains(r.URL.Path, "/info/lfs")
+}
+
+func (s *httpProxyServer) lfsProxyHandler(w http.ResponseWriter, r *http.Request) {
+	upstreamURL := *r.URL
+	upstreamURL.Scheme = "https"
+
+	proxyReq, err := http.NewRequestWithContext(r.Context(), r.Method, upstreamURL.String(), r.Body)
+	if err != nil {
+		http.Error(w, "failed to create upstream LFS request", http.StatusBadGateway)
+		return
+	}
+
+	for key, values := range r.Header {
+		for _, value := range values {
+			proxyReq.Header.Add(key, value)
+		}
+	}
+	for _, h := range hopByHopHeaders {
+		proxyReq.Header.Del(h)
+	}
+
+	resp, err := http.DefaultClient.Do(proxyReq)
+	if err != nil {
+		log.Printf("LFS proxy error: %v", err)
+		http.Error(w, "failed to reach upstream for LFS", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	for key, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+	io.Copy(w, resp.Body)
 }
 
 func (s *httpProxyServer) infoRefsHandler(reporter *httpErrorReporter, w http.ResponseWriter, r *http.Request) {
