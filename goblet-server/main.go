@@ -126,6 +126,10 @@ func FetchRepositories(config *goblet.ServerConfig, repositories []string, mustF
 func main() {
 	flag.Parse()
 
+	if containerID, err := os.Hostname(); err == nil {
+		log.SetPrefix(fmt.Sprintf("[%s] ", containerID))
+	}
+
 	if *config == "" {
 		log.Fatal("The '-config' argument is mandatory")
 	}
