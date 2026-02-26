@@ -106,8 +106,11 @@ func (s *httpProxyServer) lfsProxyHandler(w http.ResponseWriter, r *http.Request
 	upstreamURL := *r.URL
 	upstreamURL.Scheme = "https"
 
+	log.Printf("LFS proxy: %s %s -> %s", r.Method, r.URL.String(), upstreamURL.String())
+
 	proxyReq, err := http.NewRequestWithContext(r.Context(), r.Method, upstreamURL.String(), r.Body)
 	if err != nil {
+		log.Printf("LFS proxy: failed to create upstream request: %v", err)
 		http.Error(w, "failed to create upstream LFS request", http.StatusBadGateway)
 		return
 	}
@@ -121,13 +124,16 @@ func (s *httpProxyServer) lfsProxyHandler(w http.ResponseWriter, r *http.Request
 		proxyReq.Header.Del(h)
 	}
 
+	startTime := time.Now()
 	resp, err := http.DefaultClient.Do(proxyReq)
 	if err != nil {
-		log.Printf("LFS proxy error: %v", err)
+		log.Printf("LFS proxy: upstream request failed after %s: %v", time.Since(startTime), err)
 		http.Error(w, "failed to reach upstream for LFS", http.StatusBadGateway)
 		return
 	}
 	defer resp.Body.Close()
+
+	log.Printf("LFS proxy: upstream responded %d in %s (content-length: %s)", resp.StatusCode, time.Since(startTime), resp.Header.Get("Content-Length"))
 
 	for key, values := range resp.Header {
 		for _, value := range values {
@@ -135,7 +141,13 @@ func (s *httpProxyServer) lfsProxyHandler(w http.ResponseWriter, r *http.Request
 		}
 	}
 	w.WriteHeader(resp.StatusCode)
-	io.Copy(w, resp.Body)
+	written, err := io.Copy(w, resp.Body)
+	if err != nil {
+		log.Printf("LFS proxy: error copying response body: %v (wrote %d bytes)", err, written)
+		return
+	}
+
+	log.Printf("LFS proxy: completed %s %s -> %d (%d bytes, %s)", r.Method, r.URL.Path, resp.StatusCode, written, time.Since(startTime))
 }
 
 func (s *httpProxyServer) infoRefsHandler(reporter *httpErrorReporter, w http.ResponseWriter, r *http.Request) {
