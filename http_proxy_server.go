@@ -18,6 +18,7 @@ import (
 	"compress/gzip"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -33,6 +34,14 @@ type httpProxyServer struct {
 }
 
 func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// CONNECT tunneling for HTTPS requests (used by Git LFS and other
+	// HTTPS clients going through this HTTP proxy). Must be handled before
+	// any Git-specific logic since CONNECT requests have no URL path.
+	if r.Method == http.MethodConnect {
+		s.handleConnect(w, r)
+		return
+	}
+
 	// In AWS, ALBs strips the "scheme", "host" bits from the request URI.
 	// Goblet requires this data (especially the "host" bit) to construct
 	// the upstream URL. Thus, we re-construct the original URI using the
@@ -100,6 +109,55 @@ var hopByHopHeaders = []string{
 
 func isLFSRequest(r *http.Request) bool {
 	return strings.Contains(r.URL.Path, "/info/lfs")
+}
+
+func (s *httpProxyServer) handleConnect(w http.ResponseWriter, r *http.Request) {
+	log.Printf("CONNECT tunnel: requested to %s", r.Host)
+
+	targetConn, err := net.DialTimeout("tcp", r.Host, 10*time.Second)
+	if err != nil {
+		log.Printf("CONNECT tunnel: failed to dial %s: %v", r.Host, err)
+		http.Error(w, "failed to connect to upstream", http.StatusBadGateway)
+		return
+	}
+
+	hijacker, ok := w.(http.Hijacker)
+	if !ok {
+		targetConn.Close()
+		log.Printf("CONNECT tunnel: hijacking not supported")
+		http.Error(w, "hijacking not supported", http.StatusInternalServerError)
+		return
+	}
+
+	// Send 200 to the client before hijacking so the client knows the
+	// tunnel is established and can begin the TLS handshake.
+	w.WriteHeader(http.StatusOK)
+
+	clientConn, _, err := hijacker.Hijack()
+	if err != nil {
+		targetConn.Close()
+		log.Printf("CONNECT tunnel: hijack failed: %v", err)
+		return
+	}
+
+	log.Printf("CONNECT tunnel: established to %s", r.Host)
+
+	done := make(chan struct{}, 2)
+	go func() {
+		io.Copy(targetConn, clientConn)
+		done <- struct{}{}
+	}()
+	go func() {
+		io.Copy(clientConn, targetConn)
+		done <- struct{}{}
+	}()
+
+	<-done
+	clientConn.Close()
+	targetConn.Close()
+	<-done
+
+	log.Printf("CONNECT tunnel: closed to %s", r.Host)
 }
 
 func (s *httpProxyServer) lfsProxyHandler(w http.ResponseWriter, r *http.Request) {
