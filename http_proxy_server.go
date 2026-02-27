@@ -182,6 +182,14 @@ func (s *httpProxyServer) lfsProxyHandler(w http.ResponseWriter, r *http.Request
 		proxyReq.Header.Del(h)
 	}
 
+	token, err := s.config.TokenSource.Token()
+	if err != nil {
+		log.Printf("LFS proxy: failed to obtain token: %v", err)
+		http.Error(w, "failed to obtain upstream credentials", http.StatusBadGateway)
+		return
+	}
+	token.SetAuthHeader(proxyReq)
+
 	startTime := time.Now()
 	resp, err := http.DefaultClient.Do(proxyReq)
 	if err != nil {
