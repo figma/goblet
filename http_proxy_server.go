@@ -18,6 +18,7 @@ import (
 	"compress/gzip"
 	"io"
 	"log"
+	"net"
 	"net/http"
 	"strings"
 	"time"
@@ -33,6 +34,14 @@ type httpProxyServer struct {
 }
 
 func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	// CONNECT tunneling for HTTPS requests (used by Git LFS and other
+	// HTTPS clients going through this HTTP proxy). Must be handled before
+	// any Git-specific logic since CONNECT requests have no URL path.
+	if r.Method == http.MethodConnect {
+		s.handleConnect(w, r)
+		return
+	}
+
 	// In AWS, ALBs strips the "scheme", "host" bits from the request URI.
 	// Goblet requires this data (especially the "host" bit) to construct
 	// the upstream URL. Thus, we re-construct the original URI using the
@@ -68,6 +77,10 @@ func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reporter.reportError(err)
 		return
 	}
+	if isLFSRequest(r) {
+		s.lfsProxyHandler(w, r)
+		return
+	}
 	if proto := r.Header.Get("Git-Protocol"); proto != "version=2" {
 		reporter.reportError(status.Errorf(codes.InvalidArgument, "accepts only Git protocol v2, received %v", proto))
 		return
@@ -81,6 +94,126 @@ func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	case strings.HasSuffix(r.URL.Path, "/git-upload-pack"):
 		s.uploadPackHandler(reporter, w, r, ci_source)
 	}
+}
+
+var hopByHopHeaders = []string{
+	"Connection",
+	"Keep-Alive",
+	"Proxy-Authorization",
+	"Proxy-Connection",
+	"Te",
+	"Trailer",
+	"Transfer-Encoding",
+	"Upgrade",
+}
+
+func isLFSRequest(r *http.Request) bool {
+	return strings.Contains(r.URL.Path, "/info/lfs")
+}
+
+func (s *httpProxyServer) handleConnect(w http.ResponseWriter, r *http.Request) {
+	log.Printf("CONNECT tunnel: requested to %s", r.Host)
+
+	targetConn, err := net.DialTimeout("tcp", r.Host, 10*time.Second)
+	if err != nil {
+		log.Printf("CONNECT tunnel: failed to dial %s: %v", r.Host, err)
+		http.Error(w, "failed to connect to upstream", http.StatusBadGateway)
+		return
+	}
+
+	hijacker, ok := w.(http.Hijacker)
+	if !ok {
+		targetConn.Close()
+		log.Printf("CONNECT tunnel: hijacking not supported")
+		http.Error(w, "hijacking not supported", http.StatusInternalServerError)
+		return
+	}
+
+	// Send 200 to the client before hijacking so the client knows the
+	// tunnel is established and can begin the TLS handshake.
+	w.WriteHeader(http.StatusOK)
+
+	clientConn, _, err := hijacker.Hijack()
+	if err != nil {
+		targetConn.Close()
+		log.Printf("CONNECT tunnel: hijack failed: %v", err)
+		return
+	}
+
+	log.Printf("CONNECT tunnel: established to %s", r.Host)
+
+	done := make(chan struct{}, 2)
+	go func() {
+		io.Copy(targetConn, clientConn)
+		done <- struct{}{}
+	}()
+	go func() {
+		io.Copy(clientConn, targetConn)
+		done <- struct{}{}
+	}()
+
+	<-done
+	clientConn.Close()
+	targetConn.Close()
+	<-done
+
+	log.Printf("CONNECT tunnel: closed to %s", r.Host)
+}
+
+func (s *httpProxyServer) lfsProxyHandler(w http.ResponseWriter, r *http.Request) {
+	upstreamURL := *r.URL
+	upstreamURL.Scheme = "https"
+
+	log.Printf("LFS proxy: %s %s -> %s", r.Method, r.URL.String(), upstreamURL.String())
+
+	proxyReq, err := http.NewRequestWithContext(r.Context(), r.Method, upstreamURL.String(), r.Body)
+	if err != nil {
+		log.Printf("LFS proxy: failed to create upstream request: %v", err)
+		http.Error(w, "failed to create upstream LFS request", http.StatusBadGateway)
+		return
+	}
+
+	for key, values := range r.Header {
+		for _, value := range values {
+			proxyReq.Header.Add(key, value)
+		}
+	}
+	for _, h := range hopByHopHeaders {
+		proxyReq.Header.Del(h)
+	}
+
+	token, err := s.config.TokenSource.Token()
+	if err != nil {
+		log.Printf("LFS proxy: failed to obtain token: %v", err)
+		http.Error(w, "failed to obtain upstream credentials", http.StatusBadGateway)
+		return
+	}
+	proxyReq.SetBasicAuth("x-access-token", token.AccessToken)
+
+	startTime := time.Now()
+	resp, err := http.DefaultClient.Do(proxyReq)
+	if err != nil {
+		log.Printf("LFS proxy: upstream request failed after %s: %v", time.Since(startTime), err)
+		http.Error(w, "failed to reach upstream for LFS", http.StatusBadGateway)
+		return
+	}
+	defer resp.Body.Close()
+
+	log.Printf("LFS proxy: upstream responded %d in %s (content-length: %s)", resp.StatusCode, time.Since(startTime), resp.Header.Get("Content-Length"))
+
+	for key, values := range resp.Header {
+		for _, value := range values {
+			w.Header().Add(key, value)
+		}
+	}
+	w.WriteHeader(resp.StatusCode)
+	written, err := io.Copy(w, resp.Body)
+	if err != nil {
+		log.Printf("LFS proxy: error copying response body: %v (wrote %d bytes)", err, written)
+		return
+	}
+
+	log.Printf("LFS proxy: completed %s %s -> %d (%d bytes, %s)", r.Method, r.URL.Path, resp.StatusCode, written, time.Since(startTime))
 }
 
 func (s *httpProxyServer) infoRefsHandler(reporter *httpErrorReporter, w http.ResponseWriter, r *http.Request) {
