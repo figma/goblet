@@ -188,7 +188,7 @@ func (s *httpProxyServer) lfsProxyHandler(w http.ResponseWriter, r *http.Request
 		http.Error(w, "failed to obtain upstream credentials", http.StatusBadGateway)
 		return
 	}
-	token.SetAuthHeader(proxyReq)
+	proxyReq.SetBasicAuth("x-access-token", token.AccessToken)
 
 	startTime := time.Now()
 	resp, err := http.DefaultClient.Do(proxyReq)
