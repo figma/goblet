@@ -265,9 +265,7 @@ func seedRepository(config *ServerConfig, repository *managedRepository) error {
 		}
 
 		// Close immediately instead of deferring in loop
-		if err := outFile.Close(); err != nil {
-			return err
-		}
+		outFile.Close()
 	}
 
 	log.Println("Extracted", key)

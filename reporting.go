@@ -137,14 +137,14 @@ type monitoringReader struct {
 	bytesRead int64
 }
 
-func (monR *monitoringReader) Read(p []byte) (int, error) {
-	n, err := monR.r.Read(p)
-	monR.bytesRead += int64(n)
+func (r *monitoringReader) Read(p []byte) (int, error) {
+	n, err := r.r.Read(p)
+	r.bytesRead += int64(n)
 	return n, err
 }
 
-func (monR *monitoringReader) Close() error {
-	return monR.r.Close()
+func (r *monitoringReader) Close() error {
+	return r.r.Close()
 }
 
 type monitoringWriter struct {
