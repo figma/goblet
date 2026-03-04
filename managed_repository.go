@@ -206,14 +206,10 @@ func (r *managedRepository) lsRefsUpstream(command []*gitprotocolio.ProtocolV2Re
 
 	if resp.StatusCode != http.StatusOK {
 		errMessage := ""
-		if strings.HasPrefix(resp.Header.Get("Content-Type"), "text/plain") {
-			bs, err := ioutil.ReadAll(resp.Body)
-			if err == nil {
-				errMessage = string(bs)
-			}
+		bs, err := ioutil.ReadAll(resp.Body)
+		if err == nil {
+			errMessage = string(bs)
 		}
-		errData, _ := ioutil.ReadAll(resp.Body)
-		errMessage = string(errData)
 		log.Printf("ls-refs failed with non-OK response (dir:%s, status:%d, content-type:%s, error:%s)\n",
 			r.localDiskPath, resp.StatusCode, resp.Header.Get("Content-Type"), errMessage)
 		return nil, fmt.Errorf("got a non-OK response from the upstream: %v %s", resp.StatusCode, errMessage)
