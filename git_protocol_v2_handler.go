@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/google/gitprotocolio"
-	git "github.com/libgit2/git2go/v33"
+	git "github.com/libgit2/git2go/v34"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
 	"google.golang.org/grpc/codes"

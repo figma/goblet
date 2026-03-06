@@ -2,7 +2,7 @@
 set -euo pipefail
 
 cd /app
-VERSION=$(go list -m -f '{{ .Version }}' github.com/libgit2/git2go/v33)
+VERSION=$(go list -m -f '{{ .Version }}' github.com/libgit2/git2go/v34)
 
 cd /
 git clone https://github.com/libgit2/git2go.git

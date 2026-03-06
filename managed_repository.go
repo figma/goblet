@@ -35,7 +35,7 @@ import (
 	"github.com/DataDog/datadog-go/statsd"
 	"github.com/alitto/pond"
 	"github.com/google/gitprotocolio"
-	git "github.com/libgit2/git2go/v33"
+	git "github.com/libgit2/git2go/v34"
 	"go.opencensus.io/stats"
 	"go.opencensus.io/tag"
 	"golang.org/x/oauth2"
