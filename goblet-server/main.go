@@ -16,6 +16,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"flag"
 	"fmt"
 	"io"
@@ -32,6 +33,7 @@ import (
 	"github.com/canva/goblet/github"
 	"go.opencensus.io/stats/view"
 	"go.opencensus.io/tag"
+	"golang.org/x/oauth2"
 )
 
 var (
@@ -165,15 +167,24 @@ func main() {
 		return &logBasedOperation{action, u}
 	}
 
-	ts, err := github.NewTokenSource(
-		os.Getenv("GH_APP_ID"),
-		os.Getenv("GH_APP_INSTALLATION_ID"),
-		os.Getenv("GH_APP_PRIVATE_KEY"),
-		time.Duration(configFile.TokenExpiryDeltaSeconds)*time.Second,
-	)
-
-	if err != nil {
-		log.Fatal(err)
+	var ts oauth2.TokenSource
+	if pat := os.Getenv("GH_TOKEN"); pat != "" {
+		log.Println("Using GH_TOKEN for upstream authentication")
+		ts = oauth2.StaticTokenSource(&oauth2.Token{
+			AccessToken: base64.StdEncoding.EncodeToString([]byte("x-access-token:" + pat)),
+			TokenType:   "Basic",
+		})
+	} else {
+		var err error
+		ts, err = github.NewTokenSource(
+			os.Getenv("GH_APP_ID"),
+			os.Getenv("GH_APP_INSTALLATION_ID"),
+			os.Getenv("GH_APP_PRIVATE_KEY"),
+			time.Duration(configFile.TokenExpiryDeltaSeconds)*time.Second,
+		)
+		if err != nil {
+			log.Fatal(err)
+		}
 	}
 
 	authorizer := github.NewAuthorizer(true, goblet.StatsdClient)
