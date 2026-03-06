@@ -15,7 +15,9 @@
 package testing
 
 import (
+	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"net/http"
@@ -130,6 +132,8 @@ func (s *TestServer) testURLCanonicalizer(u *url.URL) (*url.URL, error) {
 		ret.Path = before
 	} else if before, ok := strings.CutSuffix(ret.Path, "/git-receive-pack"); ok {
 		ret.Path = before
+	} else if idx := strings.Index(ret.Path, "/info/lfs/"); idx >= 0 {
+		ret.Path = ret.Path[:idx]
 	}
 	ret.Path = strings.TrimSuffix(ret.Path, ".git")
 	return ret, nil
@@ -138,6 +142,11 @@ func (s *TestServer) testURLCanonicalizer(u *url.URL) (*url.URL, error) {
 func (s *TestServer) upstreamServerHandler(w http.ResponseWriter, req *http.Request) {
 	if req.Header.Get("Authorization") != "Bearer "+validServerAuthToken {
 		http.Error(w, "invalid authenticator", http.StatusForbidden)
+		return
+	}
+
+	if strings.Contains(req.URL.Path, "/info/lfs/") {
+		s.upstreamLFSHandler(w, req)
 		return
 	}
 
@@ -162,6 +171,62 @@ func (s *TestServer) upstreamServerHandler(w http.ResponseWriter, req *http.Requ
 		req.TransferEncoding = nil
 	}
 	h.ServeHTTP(w, req)
+}
+
+func (s *TestServer) upstreamLFSHandler(w http.ResponseWriter, req *http.Request) {
+	if !strings.HasSuffix(req.URL.Path, "/info/lfs/objects/batch") {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	if req.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	body, err := io.ReadAll(req.Body)
+	if err != nil {
+		http.Error(w, "bad request", http.StatusBadRequest)
+		return
+	}
+
+	var batchReq struct {
+		Operation string `json:"operation"`
+		Objects   []struct {
+			OID  string `json:"oid"`
+			Size int64  `json:"size"`
+		} `json:"objects"`
+	}
+	if err := json.Unmarshal(body, &batchReq); err != nil {
+		http.Error(w, "invalid json", http.StatusBadRequest)
+		return
+	}
+
+	type action struct {
+		Href string `json:"href"`
+	}
+	type object struct {
+		OID     string            `json:"oid"`
+		Size    int64             `json:"size"`
+		Actions map[string]action `json:"actions"`
+	}
+	resp := struct {
+		Transfer string   `json:"transfer"`
+		Objects  []object `json:"objects"`
+	}{
+		Transfer: "basic",
+	}
+	for _, obj := range batchReq.Objects {
+		resp.Objects = append(resp.Objects, object{
+			OID:  obj.OID,
+			Size: obj.Size,
+			Actions: map[string]action{
+				"download": {Href: fmt.Sprintf("https://fake-storage.example.com/%s", obj.OID)},
+			},
+		})
+	}
+
+	w.Header().Set("Content-Type", "application/vnd.git-lfs+json")
+	json.NewEncoder(w).Encode(resp)
 }
 
 func (s *TestServer) CreateRandomCommitUpstream() (string, error) {

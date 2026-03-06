@@ -68,6 +68,12 @@ func (s *httpProxyServer) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		reporter.reportError(err)
 		return
 	}
+
+	if isLFSRequest(r) {
+		s.lfsHandler(reporter, w, r)
+		return
+	}
+
 	if proto := r.Header.Get("Git-Protocol"); proto != "version=2" {
 		reporter.reportError(status.Errorf(codes.InvalidArgument, "accepts only Git protocol v2, received %v", proto))
 		return
