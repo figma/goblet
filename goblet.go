@@ -89,7 +89,7 @@ type ServerConfig struct {
 }
 
 type RunningOperation interface {
-	Printf(format string, a ...interface{})
+	Printf(format string, a ...any)
 
 	Done(error)
 }
@@ -191,12 +191,12 @@ func DefaultURLCanonicalizer(u *url.URL) (*url.URL, error) {
 	ret.Path = u.Path
 
 	// Git endpoint suffixes.
-	if strings.HasSuffix(ret.Path, "/info/refs") {
-		ret.Path = strings.TrimSuffix(ret.Path, "/info/refs")
-	} else if strings.HasSuffix(ret.Path, "/git-upload-pack") {
-		ret.Path = strings.TrimSuffix(ret.Path, "/git-upload-pack")
-	} else if strings.HasSuffix(ret.Path, "/git-receive-pack") {
-		ret.Path = strings.TrimSuffix(ret.Path, "/git-receive-pack")
+	if before, ok := strings.CutSuffix(ret.Path, "/info/refs"); ok {
+		ret.Path = before
+	} else if before, ok := strings.CutSuffix(ret.Path, "/git-upload-pack"); ok {
+		ret.Path = before
+	} else if before, ok := strings.CutSuffix(ret.Path, "/git-receive-pack"); ok {
+		ret.Path = before
 	}
 	ret.Path = strings.TrimSuffix(ret.Path, ".git")
 	return &ret, nil

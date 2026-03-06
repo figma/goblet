@@ -85,19 +85,19 @@ func NewRequestAuthorizer(ts oauth2.TokenSource) (func(*http.Request) error, err
 
 func authorizeAuthzHeader(oauth2Service *oauth2cli.Service, email, authorizationHeader string) error {
 	accessToken := ""
-	if strings.HasPrefix(authorizationHeader, "Bearer ") {
-		accessToken = strings.TrimPrefix(authorizationHeader, "Bearer ")
-	} else if strings.HasPrefix(authorizationHeader, "Basic ") {
-		bs, err := base64.StdEncoding.DecodeString(strings.TrimPrefix(authorizationHeader, "Basic "))
+	if after, ok := strings.CutPrefix(authorizationHeader, "Bearer "); ok {
+		accessToken = after
+	} else if after, ok := strings.CutPrefix(authorizationHeader, "Basic "); ok {
+		bs, err := base64.StdEncoding.DecodeString(after)
 		if err != nil {
 			return status.Error(codes.Unauthenticated, "cannot parse the Authorization header")
 		}
 		s := string(bs)
-		i := strings.IndexByte(s, ':')
-		if i < 0 {
+		_, after, ok := strings.Cut(s, ":")
+		if !ok {
 			return status.Error(codes.Unauthenticated, "cannot parse the Authorization header")
 		}
-		accessToken = s[i+1:]
+		accessToken = after
 	} else {
 		return status.Error(codes.Unauthenticated, "no bearer token")
 	}
@@ -156,12 +156,12 @@ func CanonicalizeURL(u *url.URL) (*url.URL, error) {
 		return nil, status.Errorf(codes.InvalidArgument, "unsupported host: %s", u.Host)
 	}
 	// Git endpoint suffixes.
-	if strings.HasSuffix(ret.Path, "/info/refs") {
-		ret.Path = strings.TrimSuffix(ret.Path, "/info/refs")
-	} else if strings.HasSuffix(ret.Path, "/git-upload-pack") {
-		ret.Path = strings.TrimSuffix(ret.Path, "/git-upload-pack")
-	} else if strings.HasSuffix(ret.Path, "/git-receive-pack") {
-		ret.Path = strings.TrimSuffix(ret.Path, "/git-receive-pack")
+	if before, ok := strings.CutSuffix(ret.Path, "/info/refs"); ok {
+		ret.Path = before
+	} else if before, ok := strings.CutSuffix(ret.Path, "/git-upload-pack"); ok {
+		ret.Path = before
+	} else if before, ok := strings.CutSuffix(ret.Path, "/git-receive-pack"); ok {
+		ret.Path = before
 	}
 	ret.Path = strings.TrimSuffix(ret.Path, ".git")
 	return &ret, nil
@@ -170,7 +170,7 @@ func CanonicalizeURL(u *url.URL) (*url.URL, error) {
 func scopeCheck(scopes string) (bool, bool) {
 	hasCloudPlatform := false
 	hasUserInfoEmail := false
-	for _, scope := range strings.Split(scopes, " ") {
+	for scope := range strings.SplitSeq(scopes, " ") {
 		if scope == scopeCloudPlatform {
 			hasCloudPlatform = true
 		}

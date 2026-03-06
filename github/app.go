@@ -19,7 +19,8 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	"io"
+
 	"log"
 	"net/http"
 	"time"
@@ -63,7 +64,7 @@ func getInstallationAccessToken(jwt string, installationID string) (oauth2.Token
 	}
 	defer func() { _ = res.Body.Close() }()
 
-	resBytes, err := ioutil.ReadAll(res.Body)
+	resBytes, err := io.ReadAll(res.Body)
 	if err != nil {
 		log.Printf("GitHub App token response read failed (url:%s, err:%v)\n", url, err)
 		return oauth2.Token{}, err
@@ -97,7 +98,7 @@ func getInstallationAccessToken(jwt string, installationID string) (oauth2.Token
 	}
 
 	return oauth2.Token{
-		AccessToken: base64.StdEncoding.EncodeToString([]byte(fmt.Sprintf("x-access-token:%s", resData.Token))),
+		AccessToken: base64.StdEncoding.EncodeToString(fmt.Appendf(nil, "x-access-token:%s", resData.Token)),
 		TokenType:   "Basic",
 		Expiry:      exp,
 	}, nil
