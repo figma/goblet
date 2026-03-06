@@ -21,14 +21,14 @@ jobs:
 
       - name: Install git2go
         run: |
-          VERSION=$(go list -m -f '{{ .Version }}' github.com/libgit2/git2go/v33)
+          VERSION=$(go list -m -f '{{ .Version }}' github.com/libgit2/git2go/v34)
           git clone https://github.com/libgit2/git2go.git /tmp/git2go
           cd /tmp/git2go
           git checkout "tags/${VERSION}"
           git submodule update --init
           make install-static
           cd $GITHUB_WORKSPACE
-          go mod edit -replace github.com/libgit2/git2go/v33=/tmp/git2go
+          go mod edit -replace github.com/libgit2/git2go/v34=/tmp/git2go
 
       - name: Build
         run: |
