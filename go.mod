@@ -1,6 +1,6 @@
 module github.com/canva/goblet
 
-go 1.24.0
+go 1.26.1
 
 require (
 	github.com/DataDog/opencensus-go-exporter-datadog v0.0.0-20210527074920-9baf37265e83
