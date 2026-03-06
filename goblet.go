@@ -197,6 +197,8 @@ func DefaultURLCanonicalizer(u *url.URL) (*url.URL, error) {
 		ret.Path = before
 	} else if before, ok := strings.CutSuffix(ret.Path, "/git-receive-pack"); ok {
 		ret.Path = before
+	} else if idx := strings.Index(ret.Path, "/info/lfs/"); idx >= 0 {
+		ret.Path = ret.Path[:idx]
 	}
 	ret.Path = strings.TrimSuffix(ret.Path, ".git")
 	return &ret, nil
