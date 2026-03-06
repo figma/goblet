@@ -261,7 +261,7 @@ type logBasedOperation struct {
 	u      *url.URL
 }
 
-func (op *logBasedOperation) Printf(format string, a ...interface{}) {
+func (op *logBasedOperation) Printf(format string, a ...any) {
 	// log.Printf("Progress %s (%s): %s", op.action, op.u.String(), fmt.Sprintf(format, a...))
 }
 

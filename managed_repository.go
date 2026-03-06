@@ -20,7 +20,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+
 	"log"
 	"net/http"
 	"net/url"
@@ -79,12 +79,12 @@ func getManagedRepo(localDiskPath string, u *url.URL, config *ServerConfig) *man
 	ret := m.(*managedRepository)
 	if !loaded {
 		log.Printf("FetchUpstreamPool created for %s\n", localDiskPath)
-		ret.fetchUpstreamPool = pond.New(1, 1000, pond.IdleTimeout(5*time.Minute), pond.PanicHandler(func(p interface{}) {
+		ret.fetchUpstreamPool = pond.New(1, 1000, pond.IdleTimeout(5*time.Minute), pond.PanicHandler(func(p any) {
 			log.Printf("Fetch upstream task panicked: %v\n", p)
 		}))
 
 		log.Printf("ServeFetchPool created for %s\n", localDiskPath)
-		ret.serveFetchPool = pond.New(100, 1000, pond.IdleTimeout(5*time.Minute), pond.PanicHandler(func(p interface{}) {
+		ret.serveFetchPool = pond.New(100, 1000, pond.IdleTimeout(5*time.Minute), pond.PanicHandler(func(p any) {
 			log.Printf("Serve fetch task panicked: %v\n", p)
 		}))
 
@@ -206,7 +206,7 @@ func (r *managedRepository) lsRefsUpstream(command []*gitprotocolio.ProtocolV2Re
 
 	if resp.StatusCode != http.StatusOK {
 		errMessage := ""
-		bs, err := ioutil.ReadAll(resp.Body)
+		bs, err := io.ReadAll(resp.Body)
 		if err == nil {
 			errMessage = string(bs)
 		}
@@ -549,8 +549,8 @@ func newGitRequest(command []*gitprotocolio.ProtocolV2RequestChunk) io.Reader {
 
 type noopOperation struct{}
 
-func (noopOperation) Printf(string, ...interface{}) {}
-func (noopOperation) Done(error)                    {}
+func (noopOperation) Printf(string, ...any) {}
+func (noopOperation) Done(error)            {}
 
 type operationWriter struct {
 	op RunningOperation

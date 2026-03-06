@@ -16,7 +16,7 @@ package goblet
 
 import (
 	"encoding/json"
-	"io/ioutil"
+	"os"
 )
 
 // ConfigFile holds the configuration for Goblet server instances.
@@ -33,7 +33,7 @@ type ConfigFile struct {
 // LoadConfigFile reads a Goblet configuration file.
 func LoadConfigFile(path string) (ConfigFile, error) {
 	file := ConfigFile{}
-	bytes, err := ioutil.ReadFile(path)
+	bytes, err := os.ReadFile(path)
 	if err != nil {
 		return file, err
 	}

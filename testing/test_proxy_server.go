@@ -16,7 +16,6 @@ package testing
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -89,7 +88,7 @@ func NewTestServer(config *TestServerConfig) *TestServer {
 	}
 
 	{
-		dir, err := ioutil.TempDir("", "goblet_cache")
+		dir, err := os.MkdirTemp("", "goblet_cache")
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -125,12 +124,12 @@ func (s *TestServer) testURLCanonicalizer(u *url.URL) (*url.URL, error) {
 	ret.Path = u.Path
 
 	// Git endpoint suffixes.
-	if strings.HasSuffix(ret.Path, "/info/refs") {
-		ret.Path = strings.TrimSuffix(ret.Path, "/info/refs")
-	} else if strings.HasSuffix(ret.Path, "/git-upload-pack") {
-		ret.Path = strings.TrimSuffix(ret.Path, "/git-upload-pack")
-	} else if strings.HasSuffix(ret.Path, "/git-receive-pack") {
-		ret.Path = strings.TrimSuffix(ret.Path, "/git-receive-pack")
+	if before, ok := strings.CutSuffix(ret.Path, "/info/refs"); ok {
+		ret.Path = before
+	} else if before, ok := strings.CutSuffix(ret.Path, "/git-upload-pack"); ok {
+		ret.Path = before
+	} else if before, ok := strings.CutSuffix(ret.Path, "/git-receive-pack"); ok {
+		ret.Path = before
 	}
 	ret.Path = strings.TrimSuffix(ret.Path, ".git")
 	return ret, nil
@@ -195,7 +194,7 @@ func TestRequestAuthorizer(r *http.Request) error {
 type GitRepo string
 
 func NewLocalBareGitRepo() GitRepo {
-	dir, err := ioutil.TempDir("", "goblet_tmp")
+	dir, err := os.MkdirTemp("", "goblet_tmp")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -205,7 +204,7 @@ func NewLocalBareGitRepo() GitRepo {
 }
 
 func NewLocalGitRepo() GitRepo {
-	dir, err := ioutil.TempDir("", "goblet_tmp")
+	dir, err := os.MkdirTemp("", "goblet_tmp")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -251,7 +250,7 @@ func (c *commandError) Error() string {
 		fmt.Sprintf("Error: %v", c.err),
 		fmt.Sprintf("Args: %#v", c.args),
 	}
-	for _, s := range strings.Split(c.output, "\n") {
+	for s := range strings.SplitSeq(c.output, "\n") {
 		ss = append(ss, "Output: "+s)
 	}
 	return strings.Join(ss, "\n")

@@ -1,4 +1,4 @@
-FROM golang:1.24-bookworm AS build-env
+FROM golang:1.26-trixie AS build-env
 
 RUN apt-get update && apt-get install -y gcc cmake pkg-config
 
