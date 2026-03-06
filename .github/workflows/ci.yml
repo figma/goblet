@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  go-build-test:
+    name: Go Build & Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Install native dependencies
+        run: sudo apt-get update && sudo apt-get install -y gcc cmake pkg-config
+
+      - name: Install git2go
+        run: |
+          VERSION=$(go list -m -f '{{ .Version }}' github.com/libgit2/git2go/v33)
+          git clone https://github.com/libgit2/git2go.git /tmp/git2go
+          cd /tmp/git2go
+          git checkout "tags/${VERSION}"
+          git submodule update --init
+          make install-static
+          cd $GITHUB_WORKSPACE
+          go mod edit -replace github.com/libgit2/git2go/v33=/tmp/git2go
+
+      - name: Build
+        run: |
+          go build -tags static -o /tmp/goblet-server ./goblet-server
+          go build -tags static -o /tmp/packobjectshook ./hooks/packobjects
+
+      - name: Test
+        run: go test -tags static ./...
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build .
