@@ -58,7 +58,7 @@ jobs:
         with:
           images: ghcr.io/figma/goblet
           tags: |
-            type=raw,value=sha-${{ github.event.pull_request.head.sha || github.sha }}
+            type=raw,value=${{ github.event.pull_request.head.sha || github.sha }}
 
       - uses: docker/build-push-action@v6
         with:
